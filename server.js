@@ -1,7 +1,3 @@
-// server.js
-// Простой бэкенд-прокси для проверки эссе через Anthropic API.
-// Запускается на вашем сервере, хранит API-ключ и не светит его в браузере.
-
 const express = require("express");
 const cors = require("cors");
 
@@ -9,11 +5,10 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
-// Ключ берём из переменной окружения — никогда не хардкодьте его в коде
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 if (!ANTHROPIC_API_KEY) {
-  console.error("Ошибка: не задана переменная окружения ANTHROPIC_API_KEY");
+  console.error("Ошибка: нет API ключа");
   process.exit(1);
 }
 
