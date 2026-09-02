@@ -1,7 +1,3 @@
-// server.js
-// Простой бэкенд-прокси для проверки эссе через Google Gemini API (бесплатный тариф).
-// Запускается на вашем сервере, хранит API-ключ и не светит его в браузере.
-
 const express = require("express");
 const cors = require("cors");
 
@@ -9,7 +5,6 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
-// Ключ берём из переменной окружения — никогда не хардкодьте его в коде
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {
