@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Квиз</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #14171c;
+    --panel: #1d2129;
+    --ink: #eef0f3;
+    --muted: #8b93a1;
+    --accent: #5b8cff;
+    --good: #3ec27a;
+    --bad: #e5585e;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .progress-track {
+    height: 4px;
+    background: #2a2f38;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+
+  .counter {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .question {
+    font-size: 21px;
+    line-height: 1.4;
+    margin: 0 0 24px;
+    font-weight: 600;
+  }
+
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .option {
+    text-align: left;
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    color: var(--ink);
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .option:active { transform: scale(0.98); }
+  .option:disabled { cursor: default; }
+
+  .option.correct {
+    border-color: var(--good);
+    background: rgba(62, 194, 122, 0.12);
+  }
+
+  .option.wrong {
+    border-color: var(--bad);
+    background: rgba(229, 88, 94, 0.12);
+  }
+
+  .next-btn {
+    margin-top: 24px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: none;
+  }
+
+  .result {
+    display: none;
+    text-align: center;
+    padding-top: 40px;
+  }
+
+  .result .score {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .result .score span {
+    font-size: 22px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .result .label {
+    color: var(--muted);
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
+
+  .restart-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    color: var(--ink);
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  .continue-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 24px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .section-title {
+    font-size: 21px;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+
+  .section-sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 24px;
+  }
+
+  .topic-card {
+    text-align: left;
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    color: var(--ink);
+    padding: 16px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    line-height: 1.4;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: border-color 0.15s ease;
+  }
+
+  .topic-card:active { transform: scale(0.98); }
+  .topic-card.selected {
+    border-color: var(--accent);
+    background: rgba(91, 140, 255, 0.1);
+  }
+
+  .essay-topic {
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 260px;
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    border-radius: var(--radius);
+    color: var(--ink);
+    font-size: 15px;
+    font-family: inherit;
+    padding: 14px 16px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  textarea:focus { outline: none; border-color: var(--accent); }
+
+  .word-count {
+    text-align: right;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 6px;
+  }
+
+  .grading {
+    text-align: center;
+    padding-top: 60px;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #2a2f38;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .final-scores {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .score-box {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    border-radius: var(--radius);
+    padding: 20px 12px;
+    text-align: center;
+  }
+
+  .score-box .big {
+    font-size: 32px;
+    font-weight: 700;
+  }
+
+  .score-box .small {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .feedback-box {
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+    margin-bottom: 20px;
+  }
+
+  .feedback-box .fb-title {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .error-box {
+    color: var(--bad);
+    font-size: 14px;
+    text-align: center;
+    margin-top: 16px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Экран 1: квиз -->
+  <div class="screen active" id="quizScreen">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="counter" id="counter">Вопрос 1 из 5</div>
+    <p class="question" id="questionText"></p>
+    <div class="options" id="options"></div>
+    <button class="next-btn" id="nextBtn">Далее</button>
+  </div>
+
+  <!-- Экран 2: промежуточный результат квиза -->
+  <div class="screen" id="quizResultScreen">
+    <div class="result" style="display:block;">
+      <div class="score" id="scoreText">0<span>/5</span></div>
+      <div class="label" id="resultLabel">Результат</div>
+    </div>
+    <button class="continue-btn" id="toTopicsBtn">Перейти к эссе</button>
+  </div>
+
+  <!-- Экран 3: выбор темы эссе -->
+  <div class="screen" id="topicsScreen">
+    <p class="section-title">Выберите тему эссе</p>
+    <p class="section-sub">Нажмите на тему, чтобы продолжить</p>
+    <div id="topicsList"></div>
+  </div>
+
+  <!-- Экран 4: написание эссе -->
+  <div class="screen" id="essayScreen">
+    <p class="section-title">Напишите эссе</p>
+    <div class="essay-topic" id="essayTopicText"></div>
+    <textarea id="essayInput" placeholder="Начните писать здесь..."></textarea>
+    <div class="word-count" id="wordCount">0 слов</div>
+    <button class="continue-btn" id="submitEssayBtn">Отправить на проверку</button>
+    <div class="error-box" id="essayError">Не удалось проверить эссе. Попробуйте ещё раз.</div>
+  </div>
+
+  <!-- Экран 5: проверка -->
+  <div class="screen" id="gradingScreen">
+    <div class="grading">
+      <div class="spinner"></div>
+      <div class="section-sub" style="margin:0;">Проверяем эссе...</div>
+    </div>
+  </div>
+
+  <!-- Экран 6: финальный результат -->
+  <div class="screen" id="finalScreen">
+    <p class="section-title">Итоговый результат</p>
+    <div class="final-scores">
+      <div class="score-box">
+        <div class="big" id="finalQuizScore">0/5</div>
+        <div class="small">Квиз</div>
+      </div>
+      <div class="score-box">
+        <div class="big" id="finalEssayScore">0/100</div>
+        <div class="small">Эссе</div>
+      </div>
+    </div>
+    <div class="feedback-box">
+      <div class="fb-title">Комментарий по эссе</div>
+      <div id="essayFeedback"></div>
+    </div>
+    <button class="restart-btn" id="restartAllBtn">Пройти заново</button>
+  </div>
+
+</div>
+
+<script>
+  // ---- Данные вопросов: замените под свою тему ----
+  const questions = [
+    {
+      q: "Столица Австралии?",
+      options: ["Сидней", "Мельбурн", "Канберра", "Брисбен"],
+      correct: 2
+    },
+    {
+      q: "Сколько костей в теле взрослого человека?",
+      options: ["186", "206", "226", "246"],
+      correct: 1
+    },
+    {
+      q: "Какой газ преобладает в атмосфере Земли?",
+      options: ["Кислород", "Углекислый газ", "Азот", "Водород"],
+      correct: 2
+    },
+    {
+      q: "В каком году человек впервые высадился на Луну?",
+      options: ["1965", "1969", "1972", "1975"],
+      correct: 1
+    },
+    {
+      q: "Самая длинная река в мире?",
+      options: ["Амазонка", "Янцзы", "Миссисипи", "Нил"],
+      correct: 3
+    }
+  ];
+
+  // ---- Темы эссе: замените под свою тему ----
+  const essayTopics = [
+    "Технологии делают нас счастливее или несчастнее?",
+    "Стоит ли изучать историю, если она не повторяется?",
+    "Может ли искусственный интеллект быть творцом?",
+    "Нужно ли высшее образование в современном мире?"
+  ];
+
+  let current = 0;
+  let score = 0;
+  let answered = false;
+  let selectedTopic = "";
+
+  const questionText = document.getElementById("questionText");
+  const optionsBox = document.getElementById("options");
+  const counter = document.getElementById("counter");
+  const progressFill = document.getElementById("progressFill");
+  const nextBtn = document.getElementById("nextBtn");
+  const scoreText = document.getElementById("scoreText");
+  const resultLabel = document.getElementById("resultLabel");
+
+  // Экраны
+  const screens = {
+    quiz: document.getElementById("quizScreen"),
+    quizResult: document.getElementById("quizResultScreen"),
+    topics: document.getElementById("topicsScreen"),
+    essay: document.getElementById("essayScreen"),
+    grading: document.getElementById("gradingScreen"),
+    final: document.getElementById("finalScreen")
+  };
+
+  function showScreen(name) {
+    Object.values(screens).forEach(s => s.classList.remove("active"));
+    screens[name].classList.add("active");
+  }
+
+  function renderQuestion() {
+    answered = false;
+    nextBtn.style.display = "none";
+    const item = questions[current];
+    counter.textContent = `Вопрос ${current + 1} из ${questions.length}`;
+    progressFill.style.width = `${(current / questions.length) * 100}%`;
+    questionText.textContent = item.q;
+    optionsBox.innerHTML = "";
+
+    item.options.forEach((opt, i) => {
+      const btn = document.createElement("button");
+      btn.className = "option";
+      btn.textContent = opt;
+      btn.onclick = () => selectAnswer(i, btn);
+      optionsBox.appendChild(btn);
+    });
+  }
+
+  function selectAnswer(i, btn) {
+    if (answered) return;
+    answered = true;
+    const item = questions[current];
+    const allBtns = optionsBox.querySelectorAll(".option");
+    allBtns.forEach(b => b.disabled = true);
+
+    if (i === item.correct) {
+      btn.classList.add("correct");
+      score++;
+    } else {
+      btn.classList.add("wrong");
+      allBtns[item.correct].classList.add("correct");
+    }
+
+    nextBtn.style.display = "block";
+  }
+
+  nextBtn.onclick = () => {
+    current++;
+    if (current < questions.length) {
+      renderQuestion();
+    } else {
+      showResult();
+    }
+  };
+
+  function showResult() {
+    progressFill.style.width = "100%";
+    scoreText.innerHTML = `${score}<span>/${questions.length}</span>`;
+
+    let label = "Неплохо!";
+    if (score === questions.length) label = "Идеально!";
+    else if (score >= questions.length * 0.6) label = "Хороший результат";
+    else label = "Есть куда расти";
+    resultLabel.textContent = label;
+
+    showScreen("quizResult");
+  }
+
+  // ---- Переход от результата квиза к темам эссе ----
+  document.getElementById("toTopicsBtn").onclick = () => {
+    renderTopics();
+    showScreen("topics");
+  };
+
+  function renderTopics() {
+    const list = document.getElementById("topicsList");
+    list.innerHTML = "";
+    essayTopics.forEach(topic => {
+      const card = document.createElement("button");
+      card.className = "topic-card";
+      card.textContent = topic;
+      card.onclick = () => {
+        selectedTopic = topic;
+        document.getElementById("essayTopicText").textContent = topic;
+        document.getElementById("essayInput").value = "";
+        updateWordCount();
+        showScreen("essay");
+      };
+      list.appendChild(card);
+    });
+  }
+
+  // ---- Экран написания эссе ----
+  const essayInput = document.getElementById("essayInput");
+  const wordCountEl = document.getElementById("wordCount");
+
+  function updateWordCount() {
+    const words = essayInput.value.trim().split(/\s+/).filter(Boolean).length;
+    wordCountEl.textContent = `${words} слов`;
+  }
+
+  essayInput.addEventListener("input", updateWordCount);
+
+  document.getElementById("submitEssayBtn").onclick = async () => {
+    const text = essayInput.value.trim();
+    const errorBox = document.getElementById("essayError");
+    errorBox.style.display = "none";
+
+    if (text.split(/\s+/).filter(Boolean).length < 20) {
+      errorBox.textContent = "Эссе слишком короткое — напишите развёрнутый ответ.";
+      errorBox.style.display = "block";
+      return;
+    }
+
+    showScreen("grading");
+
+    try {
+      const result = await gradeEssay(selectedTopic, text);
+      document.getElementById("finalQuizScore").textContent = `${score}/${questions.length}`;
+      document.getElementById("finalEssayScore").textContent = `${result.score}/100`;
+      document.getElementById("essayFeedback").textContent = result.feedback;
+      showScreen("final");
+
+      // Отправка итогов боту (если открыто внутри Telegram)
+      if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.MainButton.setText("Отправить результат");
+        tg.MainButton.show();
+        tg.MainButton.onClick(() => {
+          tg.sendData(JSON.stringify({
+            quizScore: score,
+            quizTotal: questions.length,
+            essayScore: result.score,
+            topic: selectedTopic
+          }));
+          tg.close();
+        });
+      }
+    } catch (err) {
+      showScreen("essay");
+      errorBox.textContent = "Не удалось проверить эссе. Попробуйте ещё раз.";
+      errorBox.style.display = "block";
+    }
+  };
+
+  // ---- Проверка эссе через собственный бэкенд ----
+  // Замените URL на адрес вашего задеплоенного сервера (server.js)
+  const BACKEND_URL = "https://ваш-сервер.example.com/api/grade-essay";
+
+  async function gradeEssay(topic, essayText) {
+    const response = await fetch(BACKEND_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic, essayText })
+    });
+
+    if (!response.ok) {
+      throw new Error("Ошибка проверки эссе");
+    }
+
+    const data = await response.json();
+    return {
+      score: data.score,
+      feedback: data.feedback
+    };
+  }
+
+  // ---- Перезапуск всего цикла ----
+  document.getElementById("restartAllBtn").onclick = () => {
+    current = 0;
+    score = 0;
+    selectedTopic = "";
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.MainButton.hide();
+    }
+    renderQuestion();
+    showScreen("quiz");
+  };
+
+  // Инициализация Telegram Mini App (не мешает работе вне Telegram)
+  if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+  }
+
+  renderQuestion();
+</script>
+
+</body>
+</html>
