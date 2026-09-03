@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #14171c;
+    --panel: #1d2129;
+    --ink: #eef0f3;
+    --muted: #8b93a1;
+    --accent: #5b8cff;
+    --good: #3ec27a;
+    --bad: #e5585e;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .progress-track {
+    height: 4px;
+    background: #2a2f38;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+
+  .counter {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .question {
+    font-size: 21px;
+    line-height: 1.4;
+    margin: 0 0 24px;
+    font-weight: 600;
+  }
+
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .option {
+    text-align: left;
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    color: var(--ink);
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .option:active { transform: scale(0.98); }
+  .option:disabled { cursor: default; }
+
+  .option.correct {
+    border-color: var(--good);
+    background: rgba(62, 194, 122, 0.12);
+  }
+
+  .option.wrong {
+    border-color: var(--bad);
+    background: rgba(229, 88, 94, 0.12);
+  }
+
+  .next-btn {
+    margin-top: 24px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: none;
+  }
+
+  .result {
+    display: none;
+    text-align: center;
+    padding-top: 40px;
+  }
+
+  .result .score {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .result .score span {
+    font-size: 22px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .result .label {
+    color: var(--muted);
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
+
+  .restart-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    color: var(--ink);
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  .continue-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 24px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .section-title {
+    font-size: 21px;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+
+  .section-sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 24px;
+  }
+
+  .topic-card {
+    text-align: left;
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    color: var(--ink);
+    padding: 16px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    line-height: 1.4;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: border-color 0.15s ease;
+  }
+
+  .topic-card:active { transform: scale(0.98); }
+  .topic-card.selected {
+    border-color: var(--accent);
+    background: rgba(91, 140, 255, 0.1);
+  }
+
+  .essay-topic {
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 260px;
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    border-radius: var(--radius);
+    color: var(--ink);
+    font-size: 15px;
+    font-family: inherit;
+    padding: 14px 16px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  textarea:focus { outline: none; border-color: var(--accent); }
+
+  .word-count {
+    text-align: right;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 6px;
+  }
+
+  .grading {
+    text-align: center;
+    padding-top: 60px;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #2a2f38;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .final-scores {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .score-box {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    border-radius: var(--radius);
+    padding: 20px 12px;
+    text-align: center;
+  }
+
+  .score-box .big {
+    font-size: 32px;
+    font-weight: 700;
+  }
+
+  .score-box .small {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .feedback-box {
+    background: var(--panel);
+    border: 1px solid #2a2f38;
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+    margin-bottom: 20px;
+  }
+
+  .feedback-box .fb-title {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .error-box {
+    color: var(--bad);
+    font-size: 14px;
+    text-align: center;
+    margin-top: 16px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  
+  <div class="screen active" id="quizScreen">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="counter" id="counter">Question 1 of 5</div>
+    <p class="question" id="questionText"></p>
+    <div class="options" id="options"></div>
+    <button class="next-btn" id="nextBtn">Next</button>
+  </div>
+
+
+  <div class="screen" id="quizResultScreen">
+    <div class="result" style="display:block;">
+      <div class="score" id="scoreText">0<span>/5</span></div>
+      <div class="label" id="resultLabel">Result</div>
+    </div>
+    <button class="continue-btn" id="toTopicsBtn">Go to the essay</button>
+  </div>
+
+
+  <div class="screen" id="topicsScreen">
+    <p class="section-title">Choose an essay topic</p>
+    <p class="section-sub">Click on the topic to continue</p>
+    <div id="topicsList"></div>
+  </div>
+
+
+  <div class="screen" id="essayScreen">
+    <p class="section-title">Write an essay</p>
+    <div class="essay-topic" id="essayTopicText"></div>
+    <textarea id="essayInput" placeholder="Start writing here..."></textarea>
+    <div class="word-count" id="wordCount">0 words</div>
+    <button class="continue-btn" id="submitEssayBtn">Send for review</button>
+    <div class="error-box" id="essayError">Couldn't check the essay. Try again.</div>
+  </div>
+
+
+  <div class="screen" id="gradingScreen">
+    <div class="grading">
+      <div class="spinner"></div>
+      <div class="section-sub" style="margin:0;">Checking the essay...</div>
+    </div>
+  </div>
+
+
+  <div class="screen" id="finalScreen">
+    <p class="section-title">Final result</p>
+    <div class="final-scores">
+      <div class="score-box">
+        <div class="big" id="finalQuizScore">0/30</div>
+        <div class="small">Quiz</div>
+      </div>
+      <div class="score-box">
+        <div class="big" id="finalEssayScore">0/100</div>
+        <div class="small">Essay</div>
+      </div>
+    </div>
+    <div class="feedback-box">
+      <div class="fb-title">A review from the great team Aruzhan1, Aruzhan2, Nazar, Dima</div>
+      <div id="essayFeedback"></div>
+    </div>
+    <button class="restart-btn" id="restartAllBtn">try again, bro</button>
+  </div>
+
+</div>
+
+<script>
+  
+ const questions = [
+  {
+    q: "What is the earliest and longest period of human history?",
+    options: ["Bronze Age", "Stone Age", "Iron Age", "Middle Ages"],
+    correct: 1
+  },
+  {
+    q: "Into which three main periods is the Stone Age traditionally divided?",
+    options: ["Early, Middle, Late", "Paleolithic, Mesolithic, Neolithic", "Copper, Bronze, Iron", "Ancient, Medieval, Modern"],
+    correct: 1
+  },
+  {
+    q: "Which period is known as the Old Stone Age?",
+    options: ["Mesolithic", "Neolithic", "Paleolithic", "Chalcolithic"],
+    correct: 2
+  },
+  {
+    q: "Approximately when did the Early (Lower) Paleolithic begin on the territory of Kazakhstan?",
+    options: ["1 million – 800 thousand years ago", "100 thousand years ago", "10 thousand years ago", "3 thousand years ago"],
+    correct: 0
+  },
+  {
+    q: "Which ancient human species is associated with the Early Paleolithic period in Kazakhstan?",
+    options: ["Homo sapiens", "Homo erectus", "Neanderthal", "Cro-Magnon"],
+    correct: 1
+  },
+  {
+    q: "In which region of Kazakhstan were the oldest Stone Age tools, such as choppers, discovered?",
+    options: ["Northern Kazakhstan", "Karatau Mountains (Southern Kazakhstan)", "Western Kazakhstan", "Altai Mountains"],
+    correct: 1
+  },
+  {
+    q: "Who was the famous Kazakh archaeologist who discovered major Paleolithic sites in the Karatau region?",
+    options: ["Kanish Satpayev", "Alkei Margulan", "Hasan Alpysbayev", "Viktor Sarianidi"],
+    correct: 2
+  },
+  {
+    q: "What primary material did early humans use to make tools during the Paleolithic era?",
+    options: ["Bronze", "Flint and pebble stone", "Iron", "Copper"],
+    correct: 1
+  },
+  {
+    q: "What was the main occupation of humans during the Paleolithic era?",
+    options: ["Farming and nomadic pastoralism", "Metallurgy and trade", "Hunting and gathering", "Pottery making"],
+    correct: 2
+  },
+  {
+    q: "The Middle Paleolithic period is also widely known as the:",
+    options: ["Mousterian culture", "Botai culture", "Kelteminar culture", "Andronovo culture"],
+    correct: 0
+  },
+  {
+    q: "Which human species lived during the Middle Paleolithic (Mousterian) period?",
+    options: ["Australopithecus", "Neanderthal", "Homo habilis", "Modern human only"],
+    correct: 1
+  },
+  {
+    q: "Which archaeological site in Kazakhstan yielded significant Mousterian (Middle Paleolithic) artifacts?",
+    options: ["Botai", "Unizhy / Kyzylrysbek", "Besshatyr", "Tamgaly"],
+    correct: 1
+  },
+  {
+    q: "During which period of the Paleolithic did modern humans (Homo sapiens) first appear?",
+    options: ["Lower Paleolithic", "Middle Paleolithic", "Upper (Late) Paleolithic", "Mesolithic"],
+    correct: 2
+  },
+  {
+    q: "What major social organization emerged during the Upper Paleolithic period?",
+    options: ["Feudal state", "Tribal union", "Clan community (Matriarchal clan)", "City-state"],
+    correct: 2
+  },
+  {
+    q: "Which ancient site in Central Kazakhstan belongs to the Upper Paleolithic period?",
+    options: ["Batpak", "Botai", "Saks", "Berel"],
+    correct: 0
+  },
+  {
+    q: "What is the Mesolithic period also known as?",
+    options: ["New Stone Age", "Middle Stone Age", "Copper-Stone Age", "Bronze Age"],
+    correct: 1
+  },
+  {
+    q: "Which key invention revolutionized hunting during the Mesolithic period?",
+    options: ["Iron spear", "Bow and arrow", "Chariot", "Bronze sword"],
+    correct: 1
+  },
+  {
+    q: "Tiny, miniature stone tools characteristic of the Mesolithic era are called:",
+    options: ["Monoliths", "Microliths", "Megaliths", "Choppers"],
+    correct: 1
+  },
+  {
+    q: "What major environmental change occurred at the beginning of the Mesolithic era?",
+    options: ["Beginning of the Ice Age", "Retreat of the glaciers and warming of the climate", "Volcanic winter", "Complete desertification of Central Asia"],
+    correct: 1
+  },
+  {
+    q: "Which animal was among the first to be domesticated by humans during the Mesolithic era?",
+    options: ["Horse", "Dog", "Sheep", "Camel"],
+    correct: 1
+  },
+  {
+    q: "What is the Neolithic period commonly called?",
+    options: ["Old Stone Age", "New Stone Age", "Metal Age", "Middle Stone Age"],
+    correct: 1
+  },
+  {
+    q: "The transition from a consuming economy (hunting/gathering) to a producing economy (agriculture/cattle breeding) is known as the:",
+    options: ["Industrial Revolution", "Neolithic Revolution", "Bronze Revolution", "Urban Revolution"],
+    correct: 1
+  },
+  {
+    q: "Which invention earned the Neolithic period the nickname \"the Age of Clay\"?",
+    options: ["Brick making", "Pottery (Ceramics)", "Clay writing tablets", "Sculpture"],
+    correct: 1
+  },
+  {
+    q: "Which Neolithic culture located in Northern Kazakhstan is famous for microlithic tools and pottery?",
+    options: ["Kelteminar culture", "Atbasar culture", "Andronovo culture", "Begazy-Dandybai culture"],
+    correct: 1
+  },
+  {
+    q: "The Neolithic culture found near the Aral Sea region, where people were mainly engaged in fishing and gathering, is called:",
+    options: ["Botai culture", "Kelteminar culture", "Tasmol culture", "Saka culture"],
+    correct: 1
+  },
+  {
+    q: "What new stone-processing techniques were developed during the Neolithic period?",
+    options: ["Casting and forging", "Polishing, drilling, and grinding", "Smelting and welding", "Carving on metal"],
+    correct: 1
+  },
+  {
+    q: "What transitional period lies between the Stone Age and the Bronze Age?",
+    options: ["Mesolithic", "Eneolithic (Chalcolithic)", "Paleolithic", "Iron Age"],
+    correct: 1
+  },
+  {
+    q: "What does the term \"Eneolithic\" mean?",
+    options: ["Old Stone", "Copper-Stone", "Iron-Stone", "New Stone"],
+    correct: 1
+  },
+  {
+    q: "Which world-famous Eneolithic site in Northern Kazakhstan provided the earliest evidence of horse domestication (around 3700–3100 BCE)?",
+    options: ["Tamgaly", "Botai", "Chirik-Rabat", "Issyk"],
+    correct: 1
+  },
+  {
+    q: "What type of dwellings did the people of the Botai culture build?",
+    options: ["Yurts made of felt", "Semi-subterranean pit-houses (dugouts)", "Multi-story stone towers", "Wooden castles"],
+    correct: 1
+  }
+];
+  const essayTopics = [
+    "Introduction to the course \"History of Kazakhstan\": goals, objectives, and significance.",
+    "Periodization of the history of Kazakhstan.",
+    "Stone Age in Kazakhstan: Paleolithic, Mesolithic, Neolithic, Eneolithic.",
+    "Neolithic Revolution and its global and local importance.",
+    "Botai culture and the domestication of the horse.",
+    "Bronze Age in Kazakhstan: Andronovo and Begazy–Dandybai cultures.",
+    "Origins of nomadic civilization in the steppe."
+  ];
+
+  let current = 0;
+  let score = 0;
+  let answered = false;
+  let selectedTopic = "";
+
+  const questionText = document.getElementById("questionText");
+  const optionsBox = document.getElementById("options");
+  const counter = document.getElementById("counter");
+  const progressFill = document.getElementById("progressFill");
+  const nextBtn = document.getElementById("nextBtn");
+  const scoreText = document.getElementById("scoreText");
+  const resultLabel = document.getElementById("resultLabel");
+
+  
+  const screens = {
+    quiz: document.getElementById("quizScreen"),
+    quizResult: document.getElementById("quizResultScreen"),
+    topics: document.getElementById("topicsScreen"),
+    essay: document.getElementById("essayScreen"),
+    grading: document.getElementById("gradingScreen"),
+    final: document.getElementById("finalScreen")
+  };
+
+  function showScreen(name) {
+    Object.values(screens).forEach(s => s.classList.remove("active"));
+    screens[name].classList.add("active");
+  }
+
+  function renderQuestion() {
+    answered = false;
+    nextBtn.style.display = "none";
+    const item = questions[current];
+    counter.textContent = `Вопрос ${current + 1} из ${questions.length}`;
+    progressFill.style.width = `${(current / questions.length) * 100}%`;
+    questionText.textContent = item.q;
+    optionsBox.innerHTML = "";
+
+    item.options.forEach((opt, i) => {
+      const btn = document.createElement("button");
+      btn.className = "option";
+      btn.textContent = opt;
+      btn.onclick = () => selectAnswer(i, btn);
+      optionsBox.appendChild(btn);
+    });
+  }
+
+  function selectAnswer(i, btn) {
+    if (answered) return;
+    answered = true;
+    const item = questions[current];
+    const allBtns = optionsBox.querySelectorAll(".option");
+    allBtns.forEach(b => b.disabled = true);
+
+    if (i === item.correct) {
+      btn.classList.add("correct");
+      score++;
+    } else {
+      btn.classList.add("wrong");
+      allBtns[item.correct].classList.add("correct");
+    }
+
+    nextBtn.style.display = "block";
+  }
+
+  nextBtn.onclick = () => {
+    current++;
+    if (current < questions.length) {
+      renderQuestion();
+    } else {
+      showResult();
+    }
+  };
+
+  function showResult() {
+    progressFill.style.width = "100%";
+    scoreText.innerHTML = `${score}<span>/${questions.length}</span>`;
+
+    let label = "Not bad!";
+    if (score === questions.length) label = "Perfect!";
+    else if (score >= questions.length * 0.6) label = "Good!";
+    else label = "bro... That's horrible";
+    resultLabel.textContent = label;
+
+    showScreen("quizResult");
+  }
+
+  document.getElementById("toTopicsBtn").onclick = () => {
+    renderTopics();
+    showScreen("topics");
+  };
+
+  function renderTopics() {
+    const list = document.getElementById("topicsList");
+    list.innerHTML = "";
+    essayTopics.forEach(topic => {
+      const card = document.createElement("button");
+      card.className = "topic-card";
+      card.textContent = topic;
+      card.onclick = () => {
+        selectedTopic = topic;
+        document.getElementById("essayTopicText").textContent = topic;
+        document.getElementById("essayInput").value = "";
+        updateWordCount();
+        showScreen("essay");
+      };
+      list.appendChild(card);
+    });
+  }
+
+  const essayInput = document.getElementById("essayInput");
+  const wordCountEl = document.getElementById("wordCount");
+
+  function updateWordCount() {
+    const words = essayInput.value.trim().split(/\s+/).filter(Boolean).length;
+    wordCountEl.textContent = `${words} words`;
+  }
+
+  essayInput.addEventListener("input", updateWordCount);
+
+  document.getElementById("submitEssayBtn").onclick = async () => {
+    const text = essayInput.value.trim();
+    const errorBox = document.getElementById("essayError");
+    errorBox.style.display = "none";
+
+    if (text.split(/\s+/).filter(Boolean).length < 20) {
+      errorBox.textContent = "The essay is too short — write a detailed response.";
+      errorBox.style.display = "block";
+      return;
+    }
+
+    showScreen("grading");
+
+    try {
+      const result = await gradeEssay(selectedTopic, text);
+      document.getElementById("finalQuizScore").textContent = `${score}/${questions.length}`;
+      document.getElementById("finalEssayScore").textContent = `${result.score}/100`;
+      document.getElementById("essayFeedback").textContent = result.feedback;
+      showScreen("final");
+
+      if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.MainButton.setText("Отправить результат");
+        tg.MainButton.show();
+        tg.MainButton.onClick(() => {
+          tg.sendData(JSON.stringify({
+            quizScore: score,
+            quizTotal: questions.length,
+            essayScore: result.score,
+            topic: selectedTopic
+          }));
+          tg.close();
+        });
+      }
+    } catch (err) {
+      showScreen("essay");
+      errorBox.textContent = "The essay could not be checked. Please try again.";
+      errorBox.style.display = "block";
+    }
+  };
+
+  // ---- Проверка эссе через собственный бэкенд ----
+  // Замените URL на адрес вашего задеплоенного сервера (server.js)
+  const BACKEND_URL = "https://ваш-сервер.example.com/api/grade-essay";
+
+  async function gradeEssay(topic, essayText) {
+    const response = await fetch(BACKEND_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic, essayText })
+    });
+
+    if (!response.ok) {
+      throw new Error("Essay verification error");
+    }
+
+    const data = await response.json();
+    return {
+      score: data.score,
+      feedback: data.feedback
+    };
+  }
+
+  document.getElementById("restartAllBtn").onclick = () => {
+    current = 0;
+    score = 0;
+    selectedTopic = "";
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.MainButton.hide();
+    }
+    renderQuestion();
+    showScreen("quiz");
+  };
+
+  if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+  }
+
+  renderQuestion();
+</script>
+
+</body>
+</html>
