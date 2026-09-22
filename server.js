@@ -37,7 +37,7 @@ app.post("/api/grade-essay", async (req, res) => {
 ${essayText}`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
+      model: "gemini-1.5-flash",
       contents: prompt
     });
 
